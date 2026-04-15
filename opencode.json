@@ -28,9 +28,6 @@
       "mode": "subagent"
     }
   },
-  "delegation": {
-    "default_invoke": ["advisor", "builder", "reviewer"]
-  },
   "compaction": {
     "auto": true,
     "prune": true,
