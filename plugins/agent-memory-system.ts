@@ -311,37 +311,57 @@ export const AgentMemorySystem: Plugin = async (ctx) => {
     
     // Hook into compaction to dump memory at 70%
     "experimental.session.compacting": async (input, output) => {
-      const { directory, client } = ctx
+      const { directory } = ctx
       
       // Check context usage - if we're compacting, dump to memory first
       const timestamp = new Date().toISOString()
       const memDir = getProjectMemoryDir(directory)
       ensureProjectMemory(directory)
       
-      const sessionFile = path.join(memDir, `session-${timestamp.replace(/[:.]/g, "-")}.md`)
+      // Count existing sessions for this session (to track multiple compactions)
+      const existingFiles = fs.existsSync(memDir) ? fs.readdirSync(memDir).filter(f => f.startsWith('session-')) : []
+      const compactionCount = existingFiles.length + 1
+      
+      const sessionFile = path.join(memDir, `session-${timestamp.replace(/[:.]/g, "-")}-compaction${compactionCount}.md`)
       
       // Generate summary from current context
-      const summary = `## Session Summary
+      const summary = `## Session Summary (Compaction #${compactionCount})
 Generated: ${timestamp}
 
-### Key Points
-- Current task context preserved through compaction
+### This compaction captures:
+- Current task state and progress
+- Key decisions made
+- Files being worked on
+- Any blockers or pending items
 
-### Files Modified
-(Summarize from recent tool executions in context)
+### Context from previous sessions:
+Previous session files available in this directory for reference.
 `
       
       fs.writeFileSync(sessionFile, summary)
       
-      // Update project summary
+      // Update project summary - just latest reference (not appending)
       const summaryFile = path.join(memDir, "summary.md")
-      fs.writeFileSync(summaryFile, summary)
+      const latestSummary = `# Project Memory Summary
+Last Updated: ${timestamp}
+Total Compactions: ${compactionCount}
+
+## Latest Session
+${summary}
+
+## Session History
+All session files are preserved in this directory:
+${existingFiles.map(f => `- ${f}`).join('\n')}
+${sessionFile.split('/').pop()}
+`
+      fs.writeFileSync(summaryFile, latestSummary)
       
       // Inject memory reference into compaction
       output.context.push(`## Session Memory
 Previous session context saved to: ${path.basename(memDir)}/
-Latest session: ${path.basename(sessionFile)}
-Reference this memory when resuming work.
+Session files: ${compactionCount} compaction(s) this session
+Latest: ${path.basename(sessionFile)}
+Reference these files when resuming work.
 `)
     }
   }
