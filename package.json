@@ -1,0 +1,21 @@
+{
+  "name": "opencode-multi-agent-system",
+  "version": "1.0.0",
+  "description": "Multi-agent system with memory management for OpenCode",
+  "main": "plugins/agent-memory-system.ts",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "keywords": [
+    "opencode",
+    "ai",
+    "agents",
+    "multi-agent",
+    "memory"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.4.3"
+  }
+}
