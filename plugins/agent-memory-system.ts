@@ -111,17 +111,18 @@ export const AgentMemorySystem: Plugin = async (ctx) => {
     // Custom tool: Interactive model selector
     tool: {
       "set-agent": tool({
-        description: "Set model for an agent role",
+        description: "Set model for an agent role - shows interactive list or accepts direct model",
         args: {
-          agent: tool.schema.enum(["advisor", "builder", "reviewer", "coordinator"]).optional()
+          agent: tool.schema.enum(["advisor", "builder", "reviewer", "coordinator"]).optional(),
+          model: tool.schema.string().optional()
         },
         async execute(args, context) {
-          const { directory: cwd } = context
           const agent = args.agent || "advisor"
+          const explicitModel = args.model
           
           // Get available models from config
           const configPath = path.join(GLOBAL_CONFIG_DIR, "opencode.json")
-          let availableModels: string[] = []
+          let availableModels: { provider: string, model: string, fullName: string }[] = []
           
           try {
             const config = JSON.parse(fs.readFileSync(configPath, "utf-8"))
@@ -131,37 +132,57 @@ export const AgentMemorySystem: Plugin = async (ctx) => {
                 if (pc.models) {
                   for (const [modelKey, modelConfig] of Object.entries(pc.models)) {
                     const mc = modelConfig as { name: string }
-                    availableModels.push(`${providerName}/${modelKey}`)
+                    availableModels.push({
+                      provider: providerName,
+                      model: modelKey,
+                      fullName: mc.name || modelKey
+                    })
                   }
                 }
               }
             }
           } catch {
-            // Use defaults
+            // Fallback: use plan mode model
             availableModels = [
-              "anthropic-billing/claude-opus-4-6",
-              "anthropic-billing/claude-sonnet-4-6", 
-              "anthropic-billing/claude-haiku-4-5",
-              "nvidiacustom/minimaxai/minimax-m2.7",
-              "nvidiacustom/google/gemma-4-31b-it"
+              { provider: "anthropic-billing", model: "claude-haiku-4-5", fullName: "Haiku 4.5" }
             ]
           }
-
-          // For now, cycle through available models
-          const currentModel = availableModels[Math.floor(Date.now() / 10000) % availableModels.length]
           
-          // Update agent config
+          // Read current agent model
           const agentFilePath = path.join(GLOBAL_CONFIG_DIR, "agents", `${agent}.md`)
+          let oldModel = "default"
           if (fs.existsSync(agentFilePath)) {
-            let content = fs.readFileSync(agentFilePath, "utf-8")
-            // Update model line
-            if (content.includes("model:")) {
-              content = content.replace(/model:.*\n/, `model: ${currentModel}\n`)
-              fs.writeFileSync(agentFilePath, content)
-            }
+            const content = fs.readFileSync(agentFilePath, "utf-8")
+            const match = content.match(/model:\s*(.+)/)
+            if (match) oldModel = match[1].trim()
           }
           
-          return `Model for ${agent} set to ${currentModel}`
+          // If explicit model provided, set it directly
+          if (explicitModel) {
+            const newModel = explicitModel
+            if (fs.existsSync(agentFilePath)) {
+              let content = fs.readFileSync(agentFilePath, "utf-8")
+              if (content.includes("model:")) {
+                content = content.replace(/model:.*\n/, `model: ${newModel}\n`)
+                fs.writeFileSync(agentFilePath, content)
+              }
+            }
+            return `✓ Model for '${agent}' changed from '${oldModel}' to '${newModel}'`
+          }
+          
+          // No explicit model - show interactive list
+          if (availableModels.length === 0) {
+            return `No models available in config. Please configure providers in opencode.json`
+          }
+          
+          // Build interactive prompt
+          let prompt = `Select model for '${agent}' (current: ${oldModel}):\n\n`
+          availableModels.forEach((m, i) => {
+            prompt += `${i + 1}. ${m.provider}/${m.model} (${m.fullName})\n`
+          })
+          prompt += `\nEnter the number of your choice (1-${availableModels.length}): `
+          
+          return prompt
         }
       }),
       
