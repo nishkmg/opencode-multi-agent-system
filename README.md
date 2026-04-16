@@ -48,6 +48,16 @@ When session compacts (at ~70% context):
 3. Global index refreshed
 4. Memory reference injected into compacted context
 
+### Persistent Model Preferences
+
+Model preferences are **saved persistently** and will be restored when switching to an agent:
+
+- **Save preference**: `set-agent [agent] [model]`
+- **Check preference**: `get-agent-model [agent]`
+- **List all**: `agent-models`
+
+This solves the issue where model settings reset when switching agents via TAB.
+
 ## Installation
 
 ### Quick Setup

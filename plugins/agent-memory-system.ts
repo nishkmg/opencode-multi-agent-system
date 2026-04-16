@@ -42,6 +42,43 @@ function saveGlobalIndex(index: MemoryIndex): void {
   fs.writeFileSync(GLOBAL_MEMORY_INDEX, JSON.stringify(index, null, 2))
 }
 
+// Agent model preferences storage
+const AGENT_MODELS_FILE = path.join(GLOBAL_CONFIG_DIR, "memory", "agent-models.json")
+
+interface AgentModels {
+  agents: Record<string, string>
+  lastUpdated: string
+}
+
+function getAgentModels(): AgentModels {
+  try {
+    if (fs.existsSync(AGENT_MODELS_FILE)) {
+      return JSON.parse(fs.readFileSync(AGENT_MODELS_FILE, "utf-8"))
+    }
+  } catch {}
+  return { agents: {}, lastUpdated: new Date().toISOString() }
+}
+
+function saveAgentModelPreference(agentName: string, model: string): void {
+  const models = getAgentModels()
+  models.agents[agentName] = model
+  models.lastUpdated = new Date().toISOString()
+  const dir = path.dirname(AGENT_MODELS_FILE)
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+  fs.writeFileSync(AGENT_MODELS_FILE, JSON.stringify(models, null, 2))
+}
+
+function getAgentModelPreference(agentName: string): string | null {
+  const models = getAgentModels()
+  return models.agents[agentName] || null
+}
+
+function getAllAgentModels(): AgentModels {
+  return getAgentModels()
+}
+
 function getProjectMemoryDir(projectPath: string): string {
   return path.join(projectPath, ".opencode", "memory")
 }
@@ -167,7 +204,17 @@ export const AgentMemorySystem: Plugin = async (ctx) => {
                 fs.writeFileSync(agentFilePath, content)
               }
             }
-            return `✓ Model for '${agent}' changed from '${oldModel}' to '${newModel}'`
+            // Save to persistent storage for restoration
+            saveAgentModelPreference(agent, newModel)
+            // Also update config
+            try {
+              const config = JSON.parse(fs.readFileSync(configPath, "utf-8"))
+              if (config.agent && config.agent[agent]) {
+                config.agent[agent].model = newModel
+                fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
+              }
+            } catch {}
+            return `✓ Model for '${agent}' changed from '${oldModel}' to '${newModel}'\n\nThis preference will be restored when switching to '${agent}'`
           }
           
           // No explicit model - show interactive list
@@ -320,14 +367,54 @@ export const AgentMemorySystem: Plugin = async (ctx) => {
               const descMatch = content.match(/description:.*?(?=\n)/)
               const modelMatch = content.match(/model:.*?(?=\n)/)
               const desc = descMatch ? descMatch[0].replace("description:", "").trim() : "No description"
-              const model = modelMatch ? modelMatch[0].replace("model:", "").trim() : "default"
-              result.push(`- **${name}**: ${desc} (model: ${model})`)
+              const savedModel = getAgentModelPreference(name)
+              result.push(`- **${name}**: ${desc}`)
+              if (savedModel) {
+                result.push(`  Saved preference: ${savedModel}`)
+              }
             }
           }
           
           return result.join("\n")
         }
-      })
+      }),
+      
+      "get-agent-model": tool({
+        description: "Get saved model preference for an agent",
+        args: {
+          agent: tool.schema.enum(["advisor", "builder", "reviewer", "coordinator"]).optional()
+        },
+        async execute(args, context) {
+          const agent = args.agent || "advisor"
+          const savedModel = getAgentModelPreference(agent)
+          
+          if (savedModel) {
+            return `Saved model for '${agent}': ${savedModel}\n\nThis preference will be restored when '${agent}' is activated.`
+          }
+          
+          return `No saved model preference for '${agent}'. Use set-agent to save a preference.`
+        }
+      }),
+      
+      "agent-models": tool({
+        description: "List all saved agent model preferences",
+        args: {},
+        async execute(args, context) {
+          const models = getAllAgentModels()
+          
+          if (Object.keys(models.agents).length === 0) {
+            return "No agent model preferences saved yet.\n\nUse set-agent [agent] [model] to save a preference."
+          }
+          
+          let result = "# Saved Agent Model Preferences\n\n"
+          for (const [agent, model] of Object.entries(models.agents)) {
+            result += `- **${agent}**: ${model}\n`
+          }
+          result += `\nLast updated: ${models.lastUpdated}`
+          
+return result
+        }
+      }),
     },
     
     // Hook into compaction to dump memory at 70%
