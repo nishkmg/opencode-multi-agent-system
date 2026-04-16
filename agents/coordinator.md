@@ -2,15 +2,6 @@
 name: coordinator
 description: Primary agent - coordinates tasks, delegates to subagents as needed
 mode: primary
-model: anthropic/claude-sonnet-4-6
-tools:
-  read: true
-  grep: true
-  glob: true
-  bash: true
-  write: true
-  edit: true
-  task: true
 invoke:
   - advisor
   - builder

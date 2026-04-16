@@ -2,14 +2,6 @@
 name: reviewer
 description: Code reviewer - validate quality, security, performance
 mode: subagent
-model: anthropic-billing/claude-haiku-4-5
-tools:
-  read: true
-  grep: true
-  glob: true
-  bash: true
-  write: false
-  edit: false
 invoke:
   - advisor
 custom_tools:

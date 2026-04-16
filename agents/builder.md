@@ -2,15 +2,6 @@
 name: builder
 description: Execution agent - implement features with clean, efficient code
 mode: subagent
-model: anthropic-billing/claude-sonnet-4-6
-tools:
-  read: true
-  grep: true
-  glob: true
-  bash: true
-  write: true
-  edit: true
-  task: true
 invoke:
   - advisor
   - reviewer

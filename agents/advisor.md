@@ -2,15 +2,6 @@
 name: advisor
 description: Architecture & reasoning - deeply analyze requirements, design solutions, think through edge cases
 mode: subagent
-model: anthropic-billing/claude-opus-4-6
-tools:
-  read: true
-  grep: true
-  glob: true
-  task: true
-  bash: false
-  write: false
-  edit: false
 invoke:
   - builder
   - reviewer
