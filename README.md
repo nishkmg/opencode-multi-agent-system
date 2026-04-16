@@ -120,13 +120,18 @@ Use `@mention` to invoke subagents:
 
 ### Change Agent Models
 
+Use the interactive wizard:
+
 ```bash
-/set-agent advisor anthropic-billing/claude-opus-4-6
+/set-agent-model
 ```
 
-Or use the plugin tool directly:
-```
-set-agent advisor
+Follow the prompts to select an agent, then model, then confirm.
+
+Or list all current configurations:
+
+```bash
+/list-agent-models
 ```
 
 ### Memory Commands
@@ -238,12 +243,22 @@ project/.opencode/memory/
 
 ## Troubleshooting
 
-### Agents not appearing
+### Agents not appearing in TAB cycling
 
 Restart OpenCode after adding agents:
 ```bash
 opencode --restart
 ```
+
+If agents still don't appear, ensure `opencode.json` has agent definitions.
+
+### Model preference not persisting on TAB switch
+
+This is a known limitation in OpenCode. When you TAB to switch agents, model preferences reset. Workaround:
+
+1. Use `/set-agent-model` to save preferences
+2. Use `/list-agent-models` to check current settings
+3. Manually set model when invoking via @mention
 
 ### Plugin not loading
 
@@ -261,7 +276,25 @@ Ensure projects are indexed:
 /memory index
 ```
 
-Or use plugin tool:
+Or use memory-index tool.
+
+### Plugin not loading
+
+Check plugin path in `opencode.json`:
+```json
+"plugin": ["./plugins/agent-memory-system.ts"]
+```
+
+Path must be relative to config directory.
+
+### Memory search returns nothing
+
+Ensure projects are indexed:
+```bash
+/memory index
+```
+
+Or use memory tools:
 ```
 memory-index
 ```
